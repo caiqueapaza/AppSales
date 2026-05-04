@@ -30,8 +30,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// liberar acesso externo
-builder.WebHost.UseUrls("http://0.0.0.0:5150");
+// liberar acesso externo (Render usa a variavel PORT)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5150";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // CORS
 builder.Services.AddCors(options =>
