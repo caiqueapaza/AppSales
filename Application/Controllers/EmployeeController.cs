@@ -48,6 +48,9 @@ namespace APISales.Application.Controllers
                 return BadRequest(ModelState);
 
             var employee = _mapper.Map<Employee>(dto);
+            employee.Email = dto.Email?.Trim() ?? string.Empty;
+            employee.Position = string.IsNullOrWhiteSpace(dto.Position) ? "Vendedor e Executor" : dto.Position.Trim();
+            employee.Phone = dto.Phone?.Trim();
 
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
@@ -70,6 +73,9 @@ namespace APISales.Application.Controllers
                 return NotFound("Funcionario nao encontrado!");
 
             _mapper.Map(dto, employee);
+            employee.Email = dto.Email?.Trim() ?? string.Empty;
+            employee.Position = string.IsNullOrWhiteSpace(dto.Position) ? employee.Position : dto.Position.Trim();
+            employee.Phone = dto.Phone?.Trim();
             await _context.SaveChangesAsync();
 
             return Ok(_mapper.Map<EmployeeResponseDto>(employee));

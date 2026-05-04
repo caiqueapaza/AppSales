@@ -14,7 +14,6 @@ namespace APISales.Domain.Employees
         [StringLength(150)]
         public string Name { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "O e-mail do funcionario e obrigatorio!")]
         [EmailAddress(ErrorMessage = "O e-mail informado e invalido!")]
         [StringLength(200)]
         public string Email { get; set; } = string.Empty;

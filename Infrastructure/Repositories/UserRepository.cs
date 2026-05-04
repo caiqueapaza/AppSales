@@ -64,7 +64,8 @@ namespace APISales.Infrastructure.Repositories
 
         public User GetLogin(string userName, string password)
         {
-            var user = _context.Users.FirstOrDefault(x => x.UserName == userName);
+            var normalizedUserName = (userName ?? string.Empty).Trim().ToLower();
+            var user = _context.Users.FirstOrDefault(x => x.UserName != null && x.UserName.ToLower() == normalizedUserName);
 
             if (user == null)
                 return null;
