@@ -54,6 +54,8 @@ namespace APISales.Domain.Sales
         public DateTime? DeliveredAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public ICollection<SaleItem> Items { get; set; } = new List<SaleItem>();
+        public ICollection<SaleItem> Items { get; set; } = new List<SaleItem>(); // Produtos da venda
+        public ICollection<SaleEntryItem> EntryItems { get; set; } = new List<SaleEntryItem>(); // Itens recebidos para reparo
+        public ICollection<SalePayment> Payments { get; set; } = new List<SalePayment>();
     }
 }

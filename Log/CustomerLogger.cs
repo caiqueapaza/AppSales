@@ -31,14 +31,27 @@ namespace APISales.Log
 
         private void WriteTextFile(string message)
         {
-            const string fileLog = @"c:\Temp\log\Sales_log.txt";
+            var baseDir = Environment.GetEnvironmentVariable("APP_LOG_DIR");
+            if (string.IsNullOrWhiteSpace(baseDir))
+            {
+                baseDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            }
+            Directory.CreateDirectory(baseDir);
+            var fileLog = Path.Combine(baseDir, "Sales_log.txt");
 
             lock (LogFileLock)
             {
-                using (var fileStream = new FileStream(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var streamWriter = new StreamWriter(fileStream))
+                try
                 {
-                    streamWriter.WriteLine(message);
+                    using (var fileStream = new FileStream(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                    using (var streamWriter = new StreamWriter(fileStream))
+                    {
+                        streamWriter.WriteLine(message);
+                    }
+                }
+                catch
+                {
+                    // Nunca bloquear a aplicação por falha de log em arquivo.
                 }
             }
         }

@@ -3,6 +3,7 @@ using System;
 using APISales.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace APISales.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260505061510_AddMeasurementUnitToSaleEntryItemService")]
+    partial class AddMeasurementUnitToSaleEntryItemService
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -436,50 +439,6 @@ namespace APISales.Migrations
                     b.ToTable("SaleItens");
                 });
 
-            modelBuilder.Entity("APISales.Domain.Sales.SalePayment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Method")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ReceivedByEmployeeId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SaleId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReceivedByEmployeeId");
-
-                    b.HasIndex("SaleId");
-
-                    b.ToTable("SalePayments");
-                });
-
             modelBuilder.Entity("APISales.Domain.ServiceItens.ServiceItem", b =>
                 {
                     b.Property<int>("Id")
@@ -682,24 +641,6 @@ namespace APISales.Migrations
                     b.Navigation("ServiceItem");
                 });
 
-            modelBuilder.Entity("APISales.Domain.Sales.SalePayment", b =>
-                {
-                    b.HasOne("APISales.Domain.Employees.Employee", "ReceivedByEmployee")
-                        .WithMany()
-                        .HasForeignKey("ReceivedByEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("APISales.Domain.Sales.Sale", "Sale")
-                        .WithMany("Payments")
-                        .HasForeignKey("SaleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReceivedByEmployee");
-
-                    b.Navigation("Sale");
-                });
-
             modelBuilder.Entity("APISales.Domain.Users.User", b =>
                 {
                     b.HasOne("APISales.Domain.Employees.Employee", "Employee")
@@ -730,8 +671,6 @@ namespace APISales.Migrations
                     b.Navigation("EntryItems");
 
                     b.Navigation("Items");
-
-                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("APISales.Domain.Sales.SaleEntryItem", b =>

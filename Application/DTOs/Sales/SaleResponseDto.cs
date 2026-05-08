@@ -1,3 +1,5 @@
+using APISales.Application.DTOs.Customers;
+
 namespace APISales.Application.DTOs.Sales
 {
     public class SaleResponseDto
@@ -22,6 +24,9 @@ namespace APISales.Application.DTOs.Sales
         public decimal AmountPaid { get; set; }
         public decimal BalanceAmount { get; set; }
         public decimal TotalPrice { get; set; }
+        public CustomerResponseDto? Customer { get; set; }
         public List<SaleItemResponseDto> Items { get; set; } = new();
+        public List<SaleEntryItemResponseDto> EntryItems { get; set; } = new();
+        public List<SalePaymentResponseDto> Payments { get; set; } = new();
     }
 }

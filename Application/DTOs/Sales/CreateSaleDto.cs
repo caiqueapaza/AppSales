@@ -33,7 +33,10 @@ namespace APISales.Application.DTOs.Sales
         [Range(0, double.MaxValue, ErrorMessage = "O valor pago nao pode ser negativo!")]
         public decimal AmountPaid { get; set; }
 
-        [MinLength(1, ErrorMessage = "A venda precisa ter pelo menos um item!")]
+        // Produtos da venda (podem existir sem reparo)
         public List<CreateSaleItemDto> Items { get; set; } = new();
+
+        // Itens recebidos para reparo, cada um com seus serviços
+        public List<CreateSaleEntryItemDto> EntryItems { get; set; } = new();
     }
 }
