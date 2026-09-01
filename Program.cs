@@ -14,6 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 var key = builder.Configuration["Jwt:Key"];
 
+if (string.IsNullOrWhiteSpace(key))
+{
+    throw new InvalidOperationException("Configure a JWT key named Jwt:Key. On Render, set the environment variable Jwt__Key.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
@@ -58,7 +63,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-string pgSqlConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+string? pgSqlConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(pgSqlConnection))
+{
+    throw new InvalidOperationException("Configure a connection string named ConnectionStrings:DefaultConnection. On Render, set the environment variable ConnectionStrings__DefaultConnection.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
                             options.UseNpgsql(pgSqlConnection));
