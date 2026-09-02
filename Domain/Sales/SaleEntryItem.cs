@@ -23,6 +23,10 @@ namespace APISales.Domain.Sales
         [StringLength(1000)]
         public string? ConditionNotes { get; set; }
 
+        [Required]
+        [StringLength(20)]
+        public string AudienceType { get; set; } = "Adult";
+
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 

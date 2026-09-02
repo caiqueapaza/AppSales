@@ -5,6 +5,10 @@ namespace APISales.Application.DTOs.Sales
     public class CreateSaleEntryItemServiceDto
     {
         [Required]
+        [RegularExpression("^(Adjustment|Replacement|Addition|Removal)$", ErrorMessage = "Acao invalida. Use: Adjustment, Replacement, Addition ou Removal.")]
+        public string ActionType { get; set; } = "Adjustment";
+
+        [Required]
         public int ServiceItemId { get; set; }
 
         public int? ExecutorEmployeeId { get; set; }

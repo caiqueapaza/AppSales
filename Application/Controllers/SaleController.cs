@@ -19,12 +19,14 @@ namespace APISales.Application.Controllers
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _environment;
 
-        public SaleController(AppDbContext context, IMapper mapper, IConfiguration configuration)
+        public SaleController(AppDbContext context, IMapper mapper, IConfiguration configuration, IWebHostEnvironment environment)
         {
             _context = context;
             _mapper = mapper;
             _configuration = configuration;
+            _environment = environment;
         }
 
         [HttpGet]
@@ -74,6 +76,9 @@ namespace APISales.Application.Controllers
                 .Include(s => s.EntryItems)
                     .ThenInclude(ei => ei.Services)
                         .ThenInclude(es => es.ServiceItem)
+                .Include(s => s.EntryItems)
+                    .ThenInclude(ei => ei.Services)
+                        .ThenInclude(es => es.DeliveredByEmployee)
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (sale is null)
@@ -84,10 +89,23 @@ namespace APISales.Application.Controllers
             var storeAddress = _configuration["Store:Address"];
             var storePhone = _configuration["Store:Phone"];
             var storeEmail = _configuration["Store:Email"];
-            var lines = BuildReceiptLines(sale, storeName, receiptTitle, storeAddress, storePhone, storeEmail);
-            var bytes = SimplePdfBuilder.BuildFromLines(lines, $"Ordem #{sale.Id}");
+            var options = new ReceiptPdfOptions
+            {
+                StoreName = storeName ?? "KuwenSys - Loja de Consertos",
+                ReceiptTitle = receiptTitle ?? "Ordem de Servico",
+                StoreAddress = storeAddress ?? string.Empty,
+                StorePhone = storePhone ?? string.Empty,
+                StoreEmail = storeEmail ?? string.Empty,
+                StoreLogoPath = ResolveAssetPath(_configuration["Store:LogoPath"]),
+                AppLogoPath = ResolveAssetPath(_configuration["Store:AppLogoPath"] ?? "assets/logo-app.png"),
+                PickupDeadlineDays = Math.Max(_configuration.GetValue<int?>("Store:PickupDeadlineDays") ?? 30, 1),
+                AdjustmentDeadlineDays = Math.Max(_configuration.GetValue<int?>("Store:AdjustmentDeadlineDays") ?? 5, 1),
+                PickupPolicyText = _configuration["Store:PickupPolicyText"] ?? string.Empty,
+                AdjustmentPolicyText = _configuration["Store:AdjustmentPolicyText"] ?? string.Empty,
+            };
+            var bytes = ProfessionalReceiptPdfBuilder.Build(sale, options);
             var customerName = sale.Customer?.Name ?? $"cliente-{sale.CustomerId}";
-            var fileName = $"kuwensys-{SanitizeFileName(storeName ?? "kuwensys")}-{SanitizeFileName(customerName)}-{sale.Id}.pdf";
+            var fileName = $"{SanitizeFileName(storeName ?? "loja")}-{SanitizeFileName(customerName)}-{sale.Id}.pdf";
             return File(bytes, "application/pdf", fileName);
         }
 
@@ -358,6 +376,11 @@ namespace APISales.Application.Controllers
                 if (!await _context.Categories.AnyAsync(c => c.Id == entryItem.CategoryId))
                     return $"Categoria {entryItem.CategoryId} nao encontrada!";
 
+                if (!SaleRepairOptions.IsValidAudienceType(entryItem.AudienceType))
+                    return "Publico invalido. Use: Adult ou Child.";
+
+                entryItem.AudienceType = SaleRepairOptions.NormalizeAudienceType(entryItem.AudienceType);
+
                 if (entryItem.Services.Count == 0)
                     return "Cada item de entrada precisa ter pelo menos um serviço.";
 
@@ -368,6 +391,11 @@ namespace APISales.Application.Controllers
 
                     if (service.ExecutorEmployeeId.HasValue && !await _context.Employees.AnyAsync(e => e.Id == service.ExecutorEmployeeId))
                         return $"Executor {service.ExecutorEmployeeId} nao encontrado!";
+
+                    if (!SaleRepairOptions.IsValidActionType(service.ActionType))
+                        return $"Acao invalida para o servico {service.ServiceItemId}. Use Adjustment, Replacement, Addition ou Removal.";
+
+                    service.ActionType = SaleRepairOptions.NormalizeActionType(service.ActionType);
 
                     var unit = (service.MeasurementUnit ?? "uni").Trim().ToLowerInvariant();
                     if (unit != "uni" && unit != "cm" && unit != "m")
@@ -437,7 +465,11 @@ namespace APISales.Application.Controllers
             string? receiptTitle,
             string? storeAddress,
             string? storePhone,
-            string? storeEmail)
+            string? storeEmail,
+            int? pickupDeadlineDays,
+            int? adjustmentDeadlineDays,
+            string? pickupPolicyText,
+            string? adjustmentPolicyText)
         {
             var culture = new CultureInfo("pt-BR");
             var customerName = sale.Customer?.Name?.Trim();
@@ -451,6 +483,7 @@ namespace APISales.Application.Controllers
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList() ?? new List<string>();
+            var receiptStatusLine = BuildReceiptStatusLine(sale);
 
             var lines = new List<string>
             {
@@ -463,6 +496,7 @@ namespace APISales.Application.Controllers
                 $"Cliente: {(!string.IsNullOrWhiteSpace(customerName) ? customerName : $"Cliente #{sale.CustomerId}")}",
                 $"Telefone: {(!string.IsNullOrWhiteSpace(customerPhone) ? customerPhone : "-")}",
                 $"Entrega prevista: {sale.DeliveryDate.ToString("dd/MM", culture)} ({sale.DeliveryDate.ToString("dddd", culture)})",
+                $"Status atual: {receiptStatusLine}",
                 deliveredRecipients.Count > 0 ? $"Entregue à: {string.Join(", ", deliveredRecipients)}" : "Entregue à: -",
                 string.Empty,
                 "Resumo dos itens de reparo:",
@@ -483,6 +517,7 @@ namespace APISales.Application.Controllers
                         ? entryItem.Category!.Name!
                         : $"Item #{entryItem.Id}";
                     lines.Add($"- {categoryName}");
+                    lines.Add($"  Publico: {FormatAudienceType(entryItem.AudienceType)}");
 
                     if (!string.IsNullOrWhiteSpace(entryItem.ConditionNotes))
                         lines.Add($"  Estado da entrada: {entryItem.ConditionNotes.Trim()}");
@@ -505,6 +540,7 @@ namespace APISales.Application.Controllers
 
                         total += lineTotal;
                         lines.Add($"  Servico: {serviceName}");
+                        lines.Add($"  Acao: {FormatActionType(service.ActionType)}");
 
                         if (!string.IsNullOrWhiteSpace(service.RepairDescription))
                             lines.Add($"  Reparo: {service.RepairDescription.Trim()}");
@@ -518,7 +554,67 @@ namespace APISales.Application.Controllers
 
             lines.Add("------------------------------------------------------------");
             lines.Add($"TOTAL REPAROS: {total.ToString("C2", culture)}");
+            if (string.Equals(receiptStatusLine, "PRONTA PARA RETIRADA", StringComparison.OrdinalIgnoreCase))
+            {
+                lines.Add(string.Empty);
+                lines.Add("Politica da loja:");
+                lines.Add(BuildPolicyLine(
+                    pickupPolicyText,
+                    $"Retirada: buscar a peca em ate {Math.Max(pickupDeadlineDays ?? 30, 1)} dia(s)."));
+                lines.Add(BuildPolicyLine(
+                    adjustmentPolicyText,
+                    $"Reparo: qualquer reclamacao ou reajuste deve ser solicitado em ate {Math.Max(adjustmentDeadlineDays ?? 7, 1)} dia(s) apos a retirada (sem cobranca)."));
+            }
             return lines;
+        }
+
+        private static string BuildPolicyLine(string? customText, string fallbackText)
+        {
+            var value = (customText ?? string.Empty).Trim();
+            return string.IsNullOrWhiteSpace(value) ? fallbackText : value;
+        }
+
+        private static string FormatAudienceType(string? audienceType)
+            => string.Equals(audienceType, "Child", StringComparison.OrdinalIgnoreCase) ? "Infantil" : "Adulto";
+
+        private static string FormatActionType(string? actionType)
+            => (actionType ?? string.Empty).Trim() switch
+            {
+                "Replacement" => "Troca",
+                "Addition" => "Inclusao",
+                "Removal" => "Remocao",
+                _ => "Ajuste",
+            };
+
+        private static string BuildReceiptStatusLine(Sale sale)
+        {
+            var statuses = sale.EntryItems?
+                .SelectMany(ei => ei.Services ?? new List<SaleEntryItemService>())
+                .Select(s => (s.ItemStatus ?? "Received").Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList() ?? new List<string>();
+
+            if (statuses.Count == 0)
+                return "EM ANALISE";
+
+            var hasReceived = statuses.Any(s => string.Equals(s, "Received", StringComparison.OrdinalIgnoreCase));
+            var hasInRepair = statuses.Any(s => string.Equals(s, "InRepair", StringComparison.OrdinalIgnoreCase));
+            var hasReady = statuses.Any(s => string.Equals(s, "Ready", StringComparison.OrdinalIgnoreCase));
+            var hasDelivered = statuses.Any(s => string.Equals(s, "Delivered", StringComparison.OrdinalIgnoreCase));
+
+            if (hasReady && !hasReceived && !hasInRepair)
+                return "PRONTA PARA RETIRADA";
+
+            if (hasDelivered && !hasReady && !hasReceived && !hasInRepair)
+                return "ENTREGUE";
+
+            if (hasInRepair)
+                return "EM CONSERTO";
+
+            if (hasReceived)
+                return "RECEBIDA";
+
+            return "EM ANDAMENTO";
         }
 
         private static string BuildStoreContactsLine(string? address, string? phone, string? email)
@@ -556,6 +652,17 @@ namespace APISales.Application.Controllers
             compact = compact.Trim('-');
             if (compact.Length == 0) compact = "arquivo";
             return compact.Length > 60 ? compact[..60] : compact;
+        }
+
+        private string? ResolveAssetPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+
+            if (Path.IsPathRooted(path))
+                return path;
+
+            return Path.Combine(_environment.ContentRootPath, path.Replace('/', Path.DirectorySeparatorChar));
         }
     }
 }

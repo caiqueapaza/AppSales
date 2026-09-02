@@ -16,13 +16,66 @@ namespace APISales.Application.Services
                 normalizedLines.Add(title);
             }
 
-            var content = BuildContentStream(normalizedLines);
+            var content = BuildContentStream(PrepareLinesForRender(normalizedLines));
             return BuildPdf(content);
+        }
+
+        private static IReadOnlyList<string> PrepareLinesForRender(IReadOnlyList<string> lines)
+        {
+            var statusLine = lines.FirstOrDefault(l => l.StartsWith("Status atual:", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+            var isReadyForPickup = statusLine.IndexOf("PRONTA PARA RETIRADA", StringComparison.OrdinalIgnoreCase) >= 0;
+            var prepared = new List<string>();
+
+            foreach (var raw in lines)
+            {
+                var line = (raw ?? string.Empty).TrimEnd();
+                if (line.StartsWith("Entregue", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var isPolicyLine = line.StartsWith("Politica da loja", StringComparison.OrdinalIgnoreCase)
+                    || line.StartsWith("Retirada:", StringComparison.OrdinalIgnoreCase)
+                    || line.StartsWith("Reparo:", StringComparison.OrdinalIgnoreCase);
+                if (isPolicyLine && !isReadyForPickup)
+                    continue;
+
+                prepared.AddRange(WrapLine(line, 72));
+            }
+
+            return prepared;
+        }
+
+        private static IEnumerable<string> WrapLine(string line, int maxLen)
+        {
+            var value = (line ?? string.Empty).TrimEnd();
+            if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLen)
+                return new[] { value };
+
+            var chunks = new List<string>();
+            var remaining = value;
+            while (remaining.Length > maxLen)
+            {
+                var splitAt = remaining.LastIndexOf(" - ", maxLen, StringComparison.Ordinal);
+                if (splitAt <= 0) splitAt = remaining.LastIndexOf(' ', maxLen);
+                if (splitAt <= 0) splitAt = maxLen;
+
+                chunks.Add(remaining[..splitAt].Trim());
+                remaining = remaining[splitAt..].TrimStart(' ', '-');
+            }
+            if (!string.IsNullOrWhiteSpace(remaining))
+                chunks.Add(remaining);
+
+            return chunks;
         }
 
         private static byte[] BuildContentStream(IReadOnlyList<string> lines)
         {
             var sb = new StringBuilder();
+
+            // Page background (same light tone used in app screens)
+            sb.AppendLine("q");
+            sb.AppendLine("0.9608 0.9686 0.9804 rg");
+            sb.AppendLine("0 0 595 842 re f");
+            sb.AppendLine("Q");
 
             // Simple vector/text brand mark (no external image lib needed)
             sb.AppendLine("q");
@@ -36,13 +89,16 @@ namespace APISales.Application.Services
             sb.AppendLine("(KS) Tj");
             sb.AppendLine("ET");
 
-            var maxLines = Math.Min(lines.Count, 52);
+            var maxLines = Math.Min(lines.Count, 56);
+            var headerSeparatorIndex = lines
+                .Select((line, index) => new { line, index })
+                .FirstOrDefault(x => x.line.StartsWith("---", StringComparison.Ordinal))?.index ?? 2;
             var mainTextStarted = false;
             for (var i = 0; i < maxLines; i++)
             {
                 var line = EscapePdfText(lines[i]);
                 var lowered = line.ToLowerInvariant();
-                if (i < 3)
+                if (i <= headerSeparatorIndex)
                 {
                     var x = Math.Max(40, 297 - (line.Length * 2.7));
                     var y = 760 - (i * 14);
@@ -62,13 +118,13 @@ namespace APISales.Application.Services
                     continue;
                 }
 
-                if (i == 3)
+                if (i == headerSeparatorIndex + 1)
                 {
                     mainTextStarted = true;
                     sb.AppendLine("BT");
                     sb.AppendLine("/F1 11 Tf");
                     sb.AppendLine("14 TL");
-                    sb.AppendLine("50 718 Td");
+                    sb.AppendLine("50 690 Td");
                 }
 
                 if (lowered.Contains("entrega prevista:") || lowered.StartsWith("- "))
@@ -83,7 +139,7 @@ namespace APISales.Application.Services
                 {
                     sb.AppendLine("0.12 0.16 0.2 rg");
                 }
-                if (i == 3)
+                if (i == headerSeparatorIndex + 1)
                 {
                     sb.AppendLine($"({line}) Tj");
                 }
@@ -99,11 +155,23 @@ namespace APISales.Application.Services
                 sb.AppendLine("ET");
             }
 
+            // Footer brand mark
+            sb.AppendLine("q");
+            sb.AppendLine("0.3059 0.1255 0.9451 rg");
+            sb.AppendLine("275 44 44 20 re f");
+            sb.AppendLine("Q");
+            sb.AppendLine("BT");
+            sb.AppendLine("/F1 12 Tf");
+            sb.AppendLine("1 1 1 rg");
+            sb.AppendLine("289 49 Td");
+            sb.AppendLine("(KS) Tj");
+            sb.AppendLine("ET");
+
             // Footer brand text
             sb.AppendLine("BT");
             sb.AppendLine("/F1 10 Tf");
             sb.AppendLine("0.12 0.16 0.2 rg");
-            sb.AppendLine("268 30 Td");
+            sb.AppendLine("265 24 Td");
             sb.AppendLine("(KuwenSys) Tj");
             sb.AppendLine("ET");
             return EncodeLatin1(sb.ToString());

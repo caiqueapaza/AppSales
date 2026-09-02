@@ -31,6 +31,10 @@ namespace APISales.Domain.Sales
         public string? RepairDescription { get; set; }
 
         [Required]
+        [StringLength(20)]
+        public string ActionType { get; set; } = "Adjustment";
+
+        [Required]
         [StringLength(10)]
         public string MeasurementUnit { get; set; } = "uni";
 

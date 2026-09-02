@@ -73,7 +73,7 @@ assets/           Logos utilizadas na geração de recibos
 | Produtos | `/Product` | CRUD de produtos |
 | Categorias | `/Category` | CRUD de categorias |
 | Serviços | `/ServiceItem` | CRUD de serviços |
-| Sugestões | `GET /ServiceItem/suggestions/{categoryId}` | Lista serviços sugeridos por categoria |
+| Sugestões | `GET /ServiceItem/suggestions?categoryId=1&audienceType=Adult&actionType=Replacement` | Lista serviços gerais com valor médio sugerido |
 | Vendas / Ordens | `/Sale` | Criação e gestão de vendas/ordens |
 | Status do serviço | `PUT /Sale/entry-service/{id}/status` | Atualiza o status de um serviço da ordem |
 | Pagamentos | `POST /Sale/{id}/payments` | Registra pagamento em uma ordem |
@@ -84,6 +84,8 @@ assets/           Logos utilizadas na geração de recibos
 - Uma ordem precisa ter pelo menos um produto vendido ou um item de reparo.
 - Itens de reparo precisam ter categoria e ao menos um serviço vinculado.
 - Serviços podem usar unidade `uni`, `cm` ou `m`.
+- Itens de reparo exigem público `Adult` ou `Child`.
+- Serviços aplicados exigem ação `Adjustment`, `Replacement`, `Addition` ou `Removal`.
 - O desconto não pode ser maior que o subtotal.
 - O valor pago não pode ultrapassar o total final da ordem.
 - Cancelamento e exclusões administrativas exigem perfil `ADM`.

@@ -16,9 +16,8 @@ namespace APISales.Domain.ServiceItens
         [StringLength(1000)]
         public string Description { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "O tipo do serviço é obrigatório!")]
         [StringLength(80)]
-        public string ServiceType { get; set; } = "Geral";
+        public string ServiceType { get; set; } = string.Empty;
 
         [Range(0.01, double.MaxValue, ErrorMessage = "O valor do serviço deve ser maior que zero!")]
         [Column(TypeName = "decimal(12,2)")]

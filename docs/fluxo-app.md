@@ -25,7 +25,7 @@ flowchart LR
     Admin --> Acessos["Acessos ao app"]
     Admin --> Categorias["Categorias de itens"]
     Admin --> Produtos["Produtos"]
-    Admin --> Servicos["Servicos por tipo/categoria"]
+    Admin --> Servicos["Servicos gerais por local da peca"]
     Admin --> ClientesAdmin["Clientes"]
     Admin --> VendasAdmin["Vendas e cancelamentos"]
 
@@ -59,8 +59,10 @@ flowchart TD
     EntradaReparo["Adicionar item recebido para reparo"]
     Categoria["Selecionar categoria do item"]
     DescricaoItem["Descrever item e estado de entrada"]
-    Sugestoes["Buscar servicos sugeridos pela categoria"]
-    ServicosItem["Adicionar um ou mais servicos ao item"]
+    Publico["Informar publico: adulto ou infantil"]
+    Acao["Informar acao: ajuste, troca, inclusao ou remocao"]
+    Sugestoes["Buscar servicos gerais com valor sugerido"]
+    ServicosItem["Adicionar servico/local da peca"]
     Medidas["Informar unidade: uni, cm ou m"]
     Executor["Selecionar executor, se houver"]
 
@@ -80,7 +82,7 @@ flowchart TD
     EscolherTipo -- "Reparo/conserto" --> EntradaReparo
     EscolherTipo -- "Ambos" --> ProdutosVendaAmbos["Adicionar produtos vendidos"] --> EntradaReparo
 
-    EntradaReparo --> Categoria --> DescricaoItem --> Sugestoes --> ServicosItem --> Medidas --> Executor --> Valores
+    EntradaReparo --> Categoria --> Publico --> DescricaoItem --> Acao --> Sugestoes --> ServicosItem --> Medidas --> Executor --> Valores
     Valores --> Desconto --> PagamentoInicial
     PagamentoInicial -- "Sim" --> RegistrarInicial --> Salvar
     PagamentoInicial -- "Nao" --> Salvar
@@ -93,6 +95,7 @@ flowchart TD
 flowchart TD
     Item["Item recebido para reparo"]
     Categoria["Categoria: calca, camisa, vestido, etc."]
+    Publico["Publico: adulto ou infantil"]
     Descricao["Descricao do item"]
     Estado["Estado/observacao de entrada"]
     Servico1["Servico 1"]
@@ -100,43 +103,51 @@ flowchart TD
     ServicoN["Outros servicos"]
 
     Item --> Categoria
+    Item --> Publico
     Item --> Descricao
     Item --> Estado
     Item --> Servico1
     Item --> Servico2
     Item --> ServicoN
 
-    Servico1 --> Tipo1["Servico cadastrado"]
+    Servico1 --> Acao1["Acao: ajuste, troca, inclusao ou remocao"]
+    Servico1 --> Tipo1["Servico/local: ziper, gola, lateral, barra, etc."]
     Servico1 --> Medida1["Quantidade + unidade"]
     Servico1 --> Valor1["Valor unitario"]
     Servico1 --> Status1["Status do servico"]
     Servico1 --> Executor1["Executor opcional"]
 
-    Servico2 --> Tipo2["Servico cadastrado"]
+    Servico2 --> Acao2["Acao: ajuste, troca, inclusao ou remocao"]
+    Servico2 --> Tipo2["Servico/local: ziper, gola, lateral, barra, etc."]
     Servico2 --> Medida2["Quantidade + unidade"]
     Servico2 --> Valor2["Valor unitario"]
     Servico2 --> Status2["Status do servico"]
     Servico2 --> Executor2["Executor opcional"]
 ```
 
-## Sugestao de servicos por categoria
+## Sugestao de servicos e valor medio
 
 ```mermaid
 flowchart LR
-    Categoria["Categoria ativa"]
-    NomeCategoria["Nome da categoria normalizado"]
+    Categoria["Categoria/peca ativa"]
+    Publico["Publico: adulto ou infantil"]
+    Acao["Acao escolhida"]
     ServicosAtivos["Servicos ativos"]
-    TipoServico["ServiceType do servico"]
-    Filtrar["Seleciona servicos em que ServiceType = categoria"]
-    Sugestoes["Retorna sugestoes"]
+    ListaGeral["Lista geral: ziper, gola, lateral, barra, etc."]
+    Historico["Historico de valores cobrados"]
+    Media["Calcula media por peca + publico + servico + acao"]
+    Fallback["Se nao houver historico, usa combinacoes mais gerais"]
+    Sugestoes["Retorna servicos + valor sugerido editavel"]
 
     Sugestoes --> Barra["Se nome contem barra: pede cm"]
     Sugestoes --> Gola["Se nome contem gola: pede cm"]
     Sugestoes --> Geral["Outros: unidade padrao uni"]
 
-    Categoria --> NomeCategoria --> Filtrar
-    ServicosAtivos --> TipoServico --> Filtrar
-    Filtrar --> Sugestoes
+    Categoria --> Media
+    Publico --> Media
+    Acao --> Media
+    ServicosAtivos --> ListaGeral --> Sugestoes
+    Historico --> Media --> Fallback --> Sugestoes
 ```
 
 ## Regras atuais da criacao da ordem
@@ -155,8 +166,10 @@ flowchart TD
 
     Reparo["Item de reparo"]
     CategoriaExiste["Categoria precisa existir"]
+    PublicoValido["Publico deve ser Adult ou Child"]
     TemServico["Cada item precisa ter pelo menos 1 servico"]
     ServicoExiste["Servico precisa existir"]
+    AcaoValida["Acao deve ser Adjustment, Replacement, Addition ou Removal"]
     ExecutorValido["Executor precisa existir, se informado"]
     UnidadeValida["Unidade deve ser uni, cm ou m"]
 
@@ -168,7 +181,7 @@ flowchart TD
     Criar --> Cliente --> Vendedor --> Conteudo
     Conteudo -- "Nao" --> ErroConteudo["Erro: incluir produto ou reparo"]
     Conteudo -- "Produto" --> Produto --> ProdutoRegra --> ProdutoSemServico --> ProdutoSemExecutor --> Totais
-    Conteudo -- "Reparo" --> Reparo --> CategoriaExiste --> TemServico --> ServicoExiste --> ExecutorValido --> UnidadeValida --> Totais
+    Conteudo -- "Reparo" --> Reparo --> CategoriaExiste --> PublicoValido --> TemServico --> ServicoExiste --> AcaoValida --> ExecutorValido --> UnidadeValida --> Totais
     Conteudo -- "Ambos" --> ProdutoAmbos["Produto vendido"] --> ProdutoRegraAmbos["Produto deve informar ProductId"] --> ProdutoSemServicoAmbos["Produto nao informa ServiceItemId"] --> ProdutoSemExecutorAmbos["Produto nao informa executor"] --> Reparo
     Totais --> Desconto --> Pago --> OK
 ```
