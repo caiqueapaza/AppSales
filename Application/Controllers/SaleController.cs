@@ -76,6 +76,9 @@ namespace APISales.Application.Controllers
                 .Include(s => s.EntryItems)
                     .ThenInclude(ei => ei.Services)
                         .ThenInclude(es => es.ServiceItem)
+                .Include(s => s.EntryItems)
+                    .ThenInclude(ei => ei.Services)
+                        .ThenInclude(es => es.DeliveredByEmployee)
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (sale is null)
@@ -96,7 +99,7 @@ namespace APISales.Application.Controllers
                 StoreLogoPath = ResolveAssetPath(_configuration["Store:LogoPath"]),
                 AppLogoPath = ResolveAssetPath(_configuration["Store:AppLogoPath"] ?? "assets/logo-app.png"),
                 PickupDeadlineDays = Math.Max(_configuration.GetValue<int?>("Store:PickupDeadlineDays") ?? 30, 1),
-                AdjustmentDeadlineDays = Math.Max(_configuration.GetValue<int?>("Store:AdjustmentDeadlineDays") ?? 7, 1),
+                AdjustmentDeadlineDays = Math.Max(_configuration.GetValue<int?>("Store:AdjustmentDeadlineDays") ?? 5, 1),
                 PickupPolicyText = _configuration["Store:PickupPolicyText"] ?? string.Empty,
                 AdjustmentPolicyText = _configuration["Store:AdjustmentPolicyText"] ?? string.Empty,
             };
@@ -373,6 +376,11 @@ namespace APISales.Application.Controllers
                 if (!await _context.Categories.AnyAsync(c => c.Id == entryItem.CategoryId))
                     return $"Categoria {entryItem.CategoryId} nao encontrada!";
 
+                if (!SaleRepairOptions.IsValidAudienceType(entryItem.AudienceType))
+                    return "Publico invalido. Use: Adult ou Child.";
+
+                entryItem.AudienceType = SaleRepairOptions.NormalizeAudienceType(entryItem.AudienceType);
+
                 if (entryItem.Services.Count == 0)
                     return "Cada item de entrada precisa ter pelo menos um serviço.";
 
@@ -383,6 +391,11 @@ namespace APISales.Application.Controllers
 
                     if (service.ExecutorEmployeeId.HasValue && !await _context.Employees.AnyAsync(e => e.Id == service.ExecutorEmployeeId))
                         return $"Executor {service.ExecutorEmployeeId} nao encontrado!";
+
+                    if (!SaleRepairOptions.IsValidActionType(service.ActionType))
+                        return $"Acao invalida para o servico {service.ServiceItemId}. Use Adjustment, Replacement, Addition ou Removal.";
+
+                    service.ActionType = SaleRepairOptions.NormalizeActionType(service.ActionType);
 
                     var unit = (service.MeasurementUnit ?? "uni").Trim().ToLowerInvariant();
                     if (unit != "uni" && unit != "cm" && unit != "m")
@@ -504,6 +517,7 @@ namespace APISales.Application.Controllers
                         ? entryItem.Category!.Name!
                         : $"Item #{entryItem.Id}";
                     lines.Add($"- {categoryName}");
+                    lines.Add($"  Publico: {FormatAudienceType(entryItem.AudienceType)}");
 
                     if (!string.IsNullOrWhiteSpace(entryItem.ConditionNotes))
                         lines.Add($"  Estado da entrada: {entryItem.ConditionNotes.Trim()}");
@@ -526,6 +540,7 @@ namespace APISales.Application.Controllers
 
                         total += lineTotal;
                         lines.Add($"  Servico: {serviceName}");
+                        lines.Add($"  Acao: {FormatActionType(service.ActionType)}");
 
                         if (!string.IsNullOrWhiteSpace(service.RepairDescription))
                             lines.Add($"  Reparo: {service.RepairDescription.Trim()}");
@@ -558,6 +573,18 @@ namespace APISales.Application.Controllers
             var value = (customText ?? string.Empty).Trim();
             return string.IsNullOrWhiteSpace(value) ? fallbackText : value;
         }
+
+        private static string FormatAudienceType(string? audienceType)
+            => string.Equals(audienceType, "Child", StringComparison.OrdinalIgnoreCase) ? "Infantil" : "Adulto";
+
+        private static string FormatActionType(string? actionType)
+            => (actionType ?? string.Empty).Trim() switch
+            {
+                "Replacement" => "Troca",
+                "Addition" => "Inclusao",
+                "Removal" => "Remocao",
+                _ => "Ajuste",
+            };
 
         private static string BuildReceiptStatusLine(Sale sale)
         {

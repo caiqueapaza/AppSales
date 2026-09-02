@@ -7,6 +7,7 @@ namespace APISales.Application.DTOs.Sales
         public string? CategoryName { get; set; }
         public string Description { get; set; } = string.Empty;
         public string? ConditionNotes { get; set; }
+        public string AudienceType { get; set; } = string.Empty;
         public List<SaleEntryItemServiceResponseDto> Services { get; set; } = new();
     }
 }

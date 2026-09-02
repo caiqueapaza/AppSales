@@ -3,6 +3,7 @@ namespace APISales.Application.DTOs.Sales
     public class SaleEntryItemServiceResponseDto
     {
         public int Id { get; set; }
+        public string ActionType { get; set; } = string.Empty;
         public int ServiceItemId { get; set; }
         public string? ServiceItemName { get; set; }
         public int? ExecutorEmployeeId { get; set; }
