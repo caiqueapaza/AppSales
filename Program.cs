@@ -7,10 +7,18 @@ using APISales.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Configuration.UserSecrets;
 using System.Text;
 using System.Text.Json.Serialization;
 
+[assembly: UserSecretsId("964982f8-95e7-4bcb-897a-f93c19340f9f")]
+
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets(typeof(Program).Assembly, optional: true);
+}
 
 var key = builder.Configuration["Jwt:Key"];
 
@@ -104,3 +112,6 @@ app.MapControllers();
 app.Run();
 
 public partial class Program { }
+
+
+

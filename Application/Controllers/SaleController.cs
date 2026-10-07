@@ -103,7 +103,7 @@ namespace APISales.Application.Controllers
                 PickupPolicyText = _configuration["Store:PickupPolicyText"] ?? string.Empty,
                 AdjustmentPolicyText = _configuration["Store:AdjustmentPolicyText"] ?? string.Empty,
             };
-            var bytes = ProfessionalReceiptPdfBuilder.Build(sale, options);
+            var bytes = CompatibleReceiptPdfBuilder.Build(sale, options);
             var customerName = sale.Customer?.Name ?? $"cliente-{sale.CustomerId}";
             var fileName = $"{SanitizeFileName(storeName ?? "loja")}-{SanitizeFileName(customerName)}-{sale.Id}.pdf";
             return File(bytes, "application/pdf", fileName);
