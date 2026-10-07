@@ -23,6 +23,8 @@ namespace APISales.Application.Services
 
     public static class ProfessionalReceiptPdfBuilder
     {
+        private const string PdfFontFamily = "Helvetica";
+
         public static byte[] Build(Sale sale, ReceiptPdfOptions options)
         {
             QuestPDF.Settings.License = LicenseType.Community;
@@ -52,7 +54,7 @@ namespace APISales.Application.Services
                 {
                     page.ContinuousSize(80, Unit.Millimetre);
                     page.Margin(9);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontColor("#1f2933"));
+                    page.DefaultTextStyle(x => x.FontFamily(PdfFontFamily).FontSize(10).FontColor("#1f2933"));
                     page.PageColor(Colors.White);
 
                     page.Content().Column(col =>
